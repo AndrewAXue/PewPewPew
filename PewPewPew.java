@@ -10,12 +10,16 @@ package PewPewPew;
 //  Explosion graphics.
 
 import java.awt.Color;
+import java.awt.Font;
 import java.lang.Math;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
+
+import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import java.util.Random;
@@ -37,6 +41,13 @@ public class PewPewPew {
 	
 	// To be used for enemy spawns at random positions
 	Random spawnpick = new Random();
+	
+	// To be used for random pews
+	Random pewpick = new Random();
+	int pewx;
+	// pewy used for placing pews above or below the ship
+	Random pewypick = new Random();
+	int pewy;
 	
 	// Integers controlling the timing of enemy spawns
 	int spawncooldown=300;
@@ -92,54 +103,21 @@ public class PewPewPew {
 	
 	private class playership extends ship{
 		// These two variables used for following the ship.
-		int xdir,mousex,ydir,mousey;
-		// dir=1 commands moving left, dir=2 moves the ship to the right, dir=3 stops the ship
+		private ImageIcon temp = new ImageIcon("Untitled.png");
+		private Image img = temp.getImage();
+		
+		int mousex,mousey;
+		double angletomouse;
 		private playership(){
 			// Initializes superclass components
 			super(100,900,20,40,100,4,10,15);
-			xdir=3;
-			ydir=3;
 		}
 		void shipmove(){
 			// If the mouse is in the ship, no movement
-			if (mousex<=x+20&&mousex>=x){
-				xdir=3;
-			}
-			// If the mouse is to the left of the ship, move to the left
-			else if (mousex-10<x){
-				xdir=1;
-			}
-			// If the mouse if to the right of the ship, move to the right
-			else if (mousex-10>x){
-				xdir=2;
-			}
-			// Move to the left
-			if (xdir==1){
-				x-=speed;
-			}
-			// Move to the right
-			else if (xdir==2){
-				x+=speed;
-			}
-			
-			if (mousey-35<=y+20&&mousey-35>=y){
-				ydir=3;
-			}
-			// If the mouse is to the left of the ship, move to the left
-			else if (mousey-35<y){
-				ydir=1;
-			}
-			// If the mouse if to the right of the ship, move to the right
-			else if (mousey-10>y){
-				ydir=2;
-			}
-			// Move to the left
-			if (ydir==1){
-				y-=speed;
-			}
-			// Move to the right
-			else if (ydir==2){
-				y+=speed;
+			if (Math.pow(mousey-40-y,2)+Math.pow(mousex-12-x,2)>20){
+				angletomouse=Math.atan2(mousey-40-y, mousex-15-x);
+				x+=Math.cos(angletomouse)*speed;
+				y+=Math.sin(angletomouse)*speed;
 			}
 		}
 		// Make the player's ship shoot.
@@ -182,6 +160,7 @@ public class PewPewPew {
 				if (collision((int)x,(int)y,(int)enemylst.get(i).x,(int)enemylst.get(i).y,siz,enemylst.get(i).size)){
 					// Removes the enemy if they are hit, else they take damage
 					enemylst.get(i).health-=damage;
+					enemylst.get(i).recenthit=150;
 					if (enemylst.get(i).health<=0){
 						enemylst.remove(i);}
 					return true;
@@ -195,7 +174,10 @@ public class PewPewPew {
 	private class enemy extends ship{
 		int index;
 		double angle;
+		int recenthit=0;
 		int pathing[];
+		private ImageIcon tempimage = new ImageIcon("enemy.png");
+		private Image pic = tempimage.getImage();
 		private enemy(int x,int y,int hea,int siz,int spe,int bulletspeedtemp,int pathig[],int bulletdamagetemp,int bullcooltemp){
 			super(x,y,siz,bullcooltemp,hea,spe,bulletdamagetemp,bulletspeedtemp);
 			pathing=pathig;
@@ -223,6 +205,7 @@ public class PewPewPew {
 				// If it has finished its path, it is removed
 				remove=true;
 			}
+			if (recenthit>=0)recenthit--;
 		}
 		// Make the ship fire.
 		private void shoot(){
@@ -237,7 +220,6 @@ public class PewPewPew {
 				// Reduces the bullet's cooldown time
 				count++;
 			}
-			
 		}
 	}
 	
@@ -304,10 +286,6 @@ public class PewPewPew {
 			else{
 				spawncount++;
 			}
-			// Make the player's ship shoot
-			player.shipshoot();
-			// Make the player's ship move
-			player.shipmove();
 			window.repaint();
 			// Set frame rate
 			try{Thread.sleep(5);}
@@ -327,12 +305,21 @@ public class PewPewPew {
 			// Player ship is white
 			grap.setColor(Color.WHITE);
 			// Draw player ship
+			//grap.drawImage(player.img, (int)player.x,(int)player.y,player.size+30,player.size+30, this);
 			grap.fillRect((int)player.x,(int)player.y,player.size,player.size);
+			
+			
+			// Make the player's ship shoot
+			player.shipshoot();
+				
+			// Make the player's ship move
+			player.shipmove();
 			
 			// Draw player bullets and go through logic for if the bullets hit something
 			for (int i=0;i<playerbullets.size();i++){
 				grap.fillRect((int)playerbullets.get(i).x, (int)playerbullets.get(i).y, playerbullets.get(i).siz, playerbullets.get(i).siz);
 				playerbullets.get(i).move();
+				// Remove the bullet if it hits something
 				if (playerbullets.get(i).hit()){
 					playerbullets.remove(i);
 				}
@@ -342,20 +329,33 @@ public class PewPewPew {
 			for (int i=0;i<enemybullets.size();i++){
 				grap.setColor(enemybullets.get(i).colour);
 				grap.fillRect((int)enemybullets.get(i).x, (int)enemybullets.get(i).y, enemybullets.get(i).size, enemybullets.get(i).size);
+				// Move the bullets based on their initial angle
 				enemybullets.get(i).move();
 				if (enemybullets.get(i).hit()){
+					// Remove the bullets if they hit something
 					enemybullets.remove(i);
 				}
 			}
-			
+			grap.setColor(Color.WHITE);
 			// Draw all the enemies and make them move, shoot, and die
 			for (int i=0;i<enemylst.size();i++){
-				grap.fillRect((int)enemylst.get(i).x, (int)enemylst.get(i).y, (int)enemylst.get(i).size, (int)enemylst.get(i).size);
+				grap.drawImage(enemylst.get(i).pic, (int)enemylst.get(i).x, (int)enemylst.get(i).y-15,(int)enemylst.get(i).size,(int)enemylst.get(i).size, this);
+				// Make the enemy move
 				enemylst.get(i).move();
+				// Make the enemy shoot
 				enemylst.get(i).shoot();
+				// If the enemy has the boolean remove as true, it will be removed. This boolean will be true if they has no health or have left
+				//    the game screen
 				if (enemylst.get(i).remove){
 					enemylst.remove(i);
 				}
+				// If the enemy has been recently hit, then display the health bar above it
+				if (enemylst.get(i).recenthit>0){
+					grap.setColor(Color.RED);
+					grap.fillRect((int)enemylst.get(i).x, (int)enemylst.get(i).y-15, (int)enemylst.get(i).size, 5);
+					grap.setColor(Color.GREEN);
+					grap.fillRect((int)enemylst.get(i).x, (int)enemylst.get(i).y-15, (int)(enemylst.get(i).size*((float)enemylst.get(i).health/100)), 5);
+				}				
 			}
 		}
 	}
